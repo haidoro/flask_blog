@@ -1309,3 +1309,272 @@ show.html
 
 ```
 
+## Update機能の追加
+
+ブログ詳細画面に編集ボタンを追加
+
+show.htmlに「編集」ボタンを追加します。
+
+show.html
+
+```
+{% extends "layout.html" %} {% block body %}
+
+<h2>{{ entry.title }}</h2>
+<br> {{ entry.text|safe }}
+
+<br>
+<br> 投稿日時 {{ entry.created_at }}
+
+<br>
+<br>
+
+<div class="btn-group">
+<form action="{{ url_for('edit_entry', id=entry.id) }}" method="GET">
+    <button type="submit" class="btn btn-secondary">編集</button>
+    </form>
+    </div>
+
+    {% endblock %}
+
+```
+
+views/entries.pyにedit_entryとupdate_entryを追加します。
+
+
+
+views/entries.py追加内容
+
+```
+@app.route('/entries/<int:id>/edit', methods=['GET'])
+def edit_entry(id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entry = Entry.query.get(id)
+    return render_template('entries/edit.html', entry=entry)
+
+
+@app.route('/entries/<int:id>/update', methods=['POST'])
+def update_entry(id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entry = Entry.query.get(id)
+    entry.title = request.form['title']
+    entry.text = request.form['text']
+    db.session.merge(entry)
+    db.session.commit()
+    flash('記事が更新されました')
+    return redirect(url_for('show_entries'))
+
+```
+
+views/entries.pyここまですべての内容
+
+```
+from flask import request, redirect, url_for, render_template, flash, session
+from blog import app
+from blog import db
+from blog.models.entries import Entry
+
+@app.route('/')
+def show_entries():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entries = Entry.query.order_by(Entry.id.desc()).all()
+    return render_template('entries/index.html', entries=entries)
+
+
+@app.route('/entries', methods=['POST'])
+def add_entry():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entry = Entry(
+            title=request.form['title'],
+            text=request.form['text']
+            )
+    db.session.add(entry)
+    db.session.commit()
+    flash('新しく記事が作成されました')
+    return redirect(url_for('show_entries'))
+
+
+@app.route('/entries/new', methods=['GET'])
+def new_entry():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    return render_template('entries/new.html')
+
+@app.route('/entries/<int:id>', methods=['GET'])
+def show_entry(id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entry = Entry.query.get(id)
+    return render_template('entries/show.html', entry=entry)
+
+@app.route('/entries/<int:id>/edit', methods=['GET'])
+def edit_entry(id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entry = Entry.query.get(id)
+    return render_template('entries/edit.html', entry=entry)
+
+
+@app.route('/entries/<int:id>/update', methods=['POST'])
+def update_entry(id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entry = Entry.query.get(id)
+    entry.title = request.form['title']
+    entry.text = request.form['text']
+    db.session.merge(entry)
+    db.session.commit()
+    flash('記事が更新されました')
+    return redirect(url_for('show_entries'))
+
+```
+
+
+
+### 編集画面の作成
+
+blog/templates/entries/edit.htmlを新規作成します。
+
+blog/templates/entries/edit.htmlすべての内容
+
+```
+{% extends "layout.html" %}
+{% block body %}
+<form action="{{ url_for('update_entry', id=entry.id) }}" method=post class=add-entry>
+    <div class="form-group">
+        <label for="InputTitle">タイトル</label>
+        <input type="text" class="form-control" id="InputTitle" name=title value={{ entry.title }}>
+        </div>
+        <div class="form-group">
+            <label for="InputText">本文</label>
+            <textarea class="form-control" id="InputText" name=text rows="3">{{ entry.text | safe }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">更新</button>
+            </form>
+
+            {% endblock %}
+
+```
+
+
+
+## Delete機能の追加
+
+show.htmlを編集して「削除ボタン」を追加します。
+
+show.htmlここまですべての内容
+
+```
+{% extends "layout.html" %} {% block body %}
+
+<h2>{{ entry.title }}</h2>
+<br> {{ entry.text|safe }}
+
+<br>
+<br> 投稿日時 {{ entry.created_at }}
+
+<br>
+<br>
+
+
+<div class="btn-group">
+<form action="{{ url_for('edit_entry', id=entry.id) }}" method="get">
+    <button type="submit" class="btn btn-secondary">編集</button>
+    </form>
+
+    <form action="{{ url_for('delete_entry', id=entry.id) }}" method="post">
+    <button type="submit" class="btn btn-danger" style="margin-left:5px">削除</button>
+    </form>
+    </div>
+
+
+    {% endblock %}
+
+```
+
+views/entries.pyにdelete_entryビューを追加
+
+views/entries.py追加内容
+
+```
+@app.route('/entries/<int:id>/delete', methods=['POST'])
+def delete_entry(id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entry = Entry.query.get(id)
+    db.session.delete(entry)
+    db.session.commit()
+    flash('投稿が削除されました')
+    return redirect(url_for('show_entries'))
+```
+
+views/entries.pyここまですべての内容
+
+```
+from flask import request, redirect, url_for, render_template, flash, session
+from blog import app
+from blog import db
+from blog.models.entries import Entry
+
+@app.route('/')
+def show_entries():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entries = Entry.query.order_by(Entry.id.desc()).all()
+    return render_template('entries/index.html', entries=entries)
+
+
+@app.route('/entries', methods=['POST'])
+def add_entry():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entry = Entry(
+            title=request.form['title'],
+            text=request.form['text']
+            )
+    db.session.add(entry)
+    db.session.commit()
+    flash('新しく記事が作成されました')
+    return redirect(url_for('show_entries'))
+
+
+@app.route('/entries/new', methods=['GET'])
+def new_entry():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    return render_template('entries/new.html')
+
+@app.route('/entries/<int:id>', methods=['GET'])
+def show_entry(id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entry = Entry.query.get(id)
+    return render_template('entries/show.html', entry=entry)
+
+@app.route('/entries/<int:id>/edit', methods=['GET'])
+def edit_entry(id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entry = Entry.query.get(id)
+    return render_template('entries/edit.html', entry=entry)
+
+
+@app.route('/entries/<int:id>/update', methods=['POST'])
+def update_entry(id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    entry = Entry.query.get(id)
+    entry.title = request.form['title']
+    entry.text = request.form['text']
+    db.session.merge(entry)
+    db.session.commit()
+    flash('記事が更新されました')
+    return redirect(url_for('show_entries'))
+
+
+```
+
